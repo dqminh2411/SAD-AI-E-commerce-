@@ -1,0 +1,20 @@
+{% extends 'staff/base.html' %}
+
+{% block title %}Staff Login{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width:520px;margin:0 auto;">
+    <h2 style="margin:0 0 10px;">Staff Login</h2>
+    <p class="muted" style="margin:0 0 10px;">Demo: username <strong>admin</strong>, password <strong>password123</strong></p>
+    {% if error %}<div class="muted" style="color:#b00020;">{{ error }}</div>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <label>Username</label>
+      <input name="username" required />
+      <label>Password</label>
+      <input name="password" type="password" required />
+      <div style="height:12px;"></div>
+      <button class="btn" type="submit">Login</button>
+    </form>
+  </div>
+{% endblock %}

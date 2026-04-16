@@ -1,0 +1,118 @@
+{% extends 'staff/base.html' %}
+
+{% block title %}Staff Dashboard{% endblock %}
+
+{% block content %}
+  <div class="page-title">
+    <div>
+      <div class="muted" style="font-weight:800;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">Staff</div>
+      <h2>Dashboard</h2>
+      <div class="muted">Manage products and review orders.</div>
+    </div>
+    <div class="tabs">
+      <a class="tab {% if active_tab == 'products' %}active{% endif %}" href="/staff/dashboard/?tab=products">Products</a>
+      <a class="tab {% if active_tab == 'orders' %}active{% endif %}" href="/staff/dashboard/?tab=orders">Orders</a>
+    </div>
+  </div>
+
+  <div style="height:12px;"></div>
+
+  <div class="grid">
+    {% if active_tab == 'orders' %}
+      <div class="card" style="grid-column: span 4;">
+        <h3 style="margin:0 0 8px;">Orders</h3>
+        {% if orders|length == 0 %}
+          <div class="muted">No orders yet.</div>
+        {% else %}
+          <table>
+            <thead>
+              <tr><th>ID</th><th>Customer</th><th>Total</th><th>Items</th></tr>
+            </thead>
+            <tbody>
+              {% for o in orders %}
+                <tr>
+                  <td>#{{ o.id }}</td>
+                  <td>{{ o.customer_id }}</td>
+                  <td>${{ o.total_amount }}</td>
+                  <td>{{ o.items|length }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="card" style="grid-column: span 2;">
+        <h3 style="margin:0 0 8px;">Manage Laptops</h3>
+        <form method="post" action="/staff/products/laptops/create/">
+          {% csrf_token %}
+          <label>Name</label><input name="name" required />
+          <label>Brand</label><input name="brand" required />
+          <label>Description</label><textarea name="description" rows="3" required></textarea>
+          <label>Price</label><input name="price" required />
+          <label>Stock</label><input name="stock" type="number" min="0" value="0" required />
+          <label>Image URL</label><input name="image_url" required />
+          <div style="height:10px;"></div>
+          <button class="btn accent" type="submit">Add laptop</button>
+        </form>
+
+        <div style="height:12px;"></div>
+        <table>
+          <thead><tr><th>Name</th><th></th></tr></thead>
+          <tbody>
+            {% for p in laptops %}
+              <tr>
+                <td>{{ p.name }}</td>
+                <td class="row" style="justify-content:flex-end;">
+                  <a class="btn secondary" href="/staff/products/laptops/{{ p.id }}/edit/">Edit</a>
+                  <form method="post" action="/staff/products/laptops/{{ p.id }}/delete/">
+                    {% csrf_token %}
+                    <button class="btn secondary" type="submit">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td class="muted">No laptops</td><td></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="grid-column: span 2;">
+        <h3 style="margin:0 0 8px;">Manage Clothes</h3>
+        <form method="post" action="/staff/products/clothes/create/">
+          {% csrf_token %}
+          <label>Name</label><input name="name" required />
+          <label>Brand</label><input name="brand" required />
+          <label>Description</label><textarea name="description" rows="3" required></textarea>
+          <label>Price</label><input name="price" required />
+          <label>Stock</label><input name="stock" type="number" min="0" value="0" required />
+          <label>Image URL</label><input name="image_url" required />
+          <div style="height:10px;"></div>
+          <button class="btn accent" type="submit">Add item</button>
+        </form>
+
+        <div style="height:12px;"></div>
+        <table>
+          <thead><tr><th>Name</th><th></th></tr></thead>
+          <tbody>
+            {% for p in clothes %}
+              <tr>
+                <td>{{ p.name }}</td>
+                <td class="row" style="justify-content:flex-end;">
+                  <a class="btn secondary" href="/staff/products/clothes/{{ p.id }}/edit/">Edit</a>
+                  <form method="post" action="/staff/products/clothes/{{ p.id }}/delete/">
+                    {% csrf_token %}
+                    <button class="btn secondary" type="submit">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td class="muted">No items</td><td></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

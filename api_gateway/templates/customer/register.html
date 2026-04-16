@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width:520px;margin:0 auto;">
+    <h2 style="margin:0 0 10px;">Create Account</h2>
+    {% if error %}<div class="muted" style="color:#b00020;">{{ error }}</div>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <label>Full name</label>
+      <input name="full_name" required />
+      <label>Email</label>
+      <input name="email" type="email" required />
+      <label>Password</label>
+      <input name="password" type="password" required />
+      <div style="height:12px;"></div>
+      <button class="btn" type="submit">Register</button>
+    </form>
+  </div>
+{% endblock %}

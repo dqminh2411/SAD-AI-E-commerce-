@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <div class="page-title">
+    <div>
+      <div class="muted" style="font-weight:800;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">Products</div>
+      <h2>{{ title }}</h2>
+      <div class="muted">Search supports fulltext + substring (e.g. “mac”, “pro”, “polo”).</div>
+    </div>
+    <form method="get" class="row" style="gap:8px;">
+      <input name="search" placeholder="Search {{ title }}" value="{{ search }}" style="max-width:340px;" />
+      <button class="btn" type="submit">Search</button>
+    </form>
+  </div>
+
+  <div style="height:14px;"></div>
+
+  <div class="grid">
+    {% for p in items %}
+      <a class="card" href="/products/{{ product_type }}/{{ p.id }}/" style="text-decoration:none;color:inherit;display:block;">
+        <div style="border-radius:12px;background:#f8f9fd;border:1px solid #eef1ff;padding:10px;">
+          <img src="{{ p.image_url }}" alt="{{ p.name }}" style="width:100%;height:170px;object-fit:contain;" />
+        </div>
+        <div style="height:10px;"></div>
+        <div style="min-height:44px;font-weight:900;line-height:1.1;">{{ p.name }}</div>
+        <div class="muted" style="font-weight:800;margin-top:6px;">{{ p.brand }}</div>
+        <div style="height:10px;"></div>
+        <div class="row" style="justify-content:space-between;">
+          <div style="font-weight:900;font-size:18px;">${{ p.price }}</div>
+          <span class="btn secondary">View</span>
+        </div>
+      </a>
+    {% empty %}
+      <div class="card">No products found.</div>
+    {% endfor %}
+  </div>
+
+  <div style="height:14px;"></div>
+
+  <div class="row" style="justify-content:space-between;">
+    <div class="muted">Page {{ page }}</div>
+    <div class="row">
+      {% if prev_page %}
+        <a class="btn secondary" href="?page={{ prev_page }}&search={{ search }}">Prev</a>
+      {% endif %}
+      {% if next_page %}
+        <a class="btn" href="?page={{ next_page }}&search={{ search }}">Next</a>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

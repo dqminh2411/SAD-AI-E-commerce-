@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Order Placed{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2 style="margin:0 0 6px;">Checkout success</h2>
+    <div class="muted">Order #{{ order.id }} placed.</div>
+    <div style="height:10px;"></div>
+
+    <table>
+      <thead>
+        <tr><th>Item</th><th>Price</th><th>Qty</th></tr>
+      </thead>
+      <tbody>
+        {% for it in order.items %}
+          <tr>
+            <td>{{ it.product_name }}</td>
+            <td>${{ it.unit_price }}</td>
+            <td>{{ it.quantity }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div style="height:12px;"></div>
+    <a class="btn" href="/">Back to home</a>
+  </div>
+{% endblock %}

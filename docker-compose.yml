@@ -1,0 +1,286 @@
+services:
+  customer_mysql:
+    image: mysql:8.0
+    container_name: customer_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: customer_db
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./customer_service/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  staff_mysql:
+    image: mysql:8.0
+    container_name: staff_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: staff_db
+    ports:
+      - "3308:3306"
+    volumes:
+      - ./staff_service/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  cart_postgres:
+    image: postgres:16-alpine
+    container_name: cart_postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: cart_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - ./cart_service/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d cart_db"]
+      timeout: 20s
+      retries: 10
+
+  product_postgres:
+    image: postgres:16-alpine
+    container_name: product_postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: product_db
+    ports:
+      - "5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d product_db"]
+      timeout: 20s
+      retries: 10
+    volumes:
+      - product_data:/var/lib/postgresql/data
+
+  interaction_postgres:
+    image: postgres:16-alpine
+    container_name: interaction_postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: interaction_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - interaction_data:/var/lib/postgresql/data
+      - ./interaction_service/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./neo4j_import/fake_interactions.csv:/docker-entrypoint-initdb.d/fake_interactions.csv
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d interaction_db"]
+      timeout: 20s
+      retries: 10
+
+  neo4j:
+    image: neo4j:5.23.0
+    container_name: neo4j
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_dbms_security_allow__csv__import__from__file__urls: "true"
+    ports:
+      - "7475:7474"
+      - "7688:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - ./neo4j_import:/var/lib/neo4j/import
+      - ./neo4j/cypher:/scripts:ro
+    restart: unless-stopped
+
+  # Vector DB for RAG:
+  # - In the FAISS-based MVP, vectors are stored locally in ai_chat_service (no external DB).
+  # - If you later switch to a hosted vector DB, add it back here.
+
+  customer_service:
+    build: ./customer_service
+    container_name: customer_service
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8001"
+    environment:
+      DB_HOST: customer_mysql
+      DB_PORT: 3306
+      DB_NAME: customer_db
+      DB_USER: root
+      DB_PASSWORD: password
+    volumes:
+      - ./customer_service:/app
+    ports:
+      - "8001:8001"
+    depends_on:
+      customer_mysql:
+        condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - customer-service
+    restart: unless-stopped
+
+  product_service:
+    build: ./product_service
+    container_name: product_service
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8002"
+    environment:
+      DB_ENGINE: postgres
+      POSTGRES_HOST: product_postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: product_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./product_service:/app
+    ports:
+      - "8002:8002"
+    depends_on:
+      product_postgres:
+        condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - product-service
+    restart: unless-stopped
+
+  cart_service:
+    build: ./cart_service
+    container_name: cart_service
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8004"
+    environment:
+      DB_HOST: cart_postgres
+      DB_PORT: 5432
+      DB_NAME: cart_db
+      DB_USER: user
+      DB_PASSWORD: password
+      CUSTOMER_SERVICE_URL: http://customer-service:8001
+      PRODUCT_SERVICE_URL: http://product-service:8002
+    volumes:
+      - ./cart_service:/app
+    ports:
+      - "8004:8004"
+    depends_on:
+      cart_postgres:
+        condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - cart-service
+    restart: unless-stopped
+
+  staff_service:
+    build: ./staff_service
+    container_name: staff_service
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8005"
+    environment:
+      DB_HOST: staff_mysql
+      DB_PORT: 3306
+      DB_NAME: staff_db
+      DB_USER: root
+      DB_PASSWORD: password
+      CART_SERVICE_URL: http://cart-service:8004
+      PRODUCT_SERVICE_URL: http://product-service:8002
+    volumes:
+      - ./staff_service:/app
+    ports:
+      - "8005:8005"
+    depends_on:
+      staff_mysql:
+        condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - staff-service
+    restart: unless-stopped
+
+  interaction_service:
+    build: ./interaction_service
+    container_name: interaction_service
+    command: sh -c "python manage.py migrate --noinput && python manage.py sync_neo4j --limit 10000 && python manage.py runserver 0.0.0.0:8007"
+    environment:
+      DB_HOST: interaction_postgres
+      DB_PORT: 5432
+      DB_NAME: interaction_db
+      DB_USER: user
+      DB_PASSWORD: password
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: password
+    volumes:
+      - ./interaction_service:/app
+    ports:
+      - "8007:8007"
+    depends_on:
+      interaction_postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_started
+    networks:
+      default:
+        aliases:
+          - interaction-service
+    restart: unless-stopped
+
+  ai_chat_service:
+    build: ./ai_chat_service
+    container_name: ai_chat_service
+    command: sh -c "python manage.py migrate --noinput && python manage.py init_kb && python manage.py runserver 0.0.0.0:8006"
+    env_file:
+      - .env
+    environment:
+      BEHAVIOR_DATA_PATH: /app/data/fake_user_behavior.json
+      KNOWLEDGE_BASE_PATH: /app/knowledge_base
+      VECTOR_STORE_DIR: /app/vector_store
+      PRODUCT_SERVICE_URL: http://product-service:8002
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: password
+      GEMINI_MODEL: gemini-2.5-flash
+    volumes:
+      - ./ai_chat_service:/app
+    ports:
+      - "8006:8006"
+    depends_on:
+      - product_service
+      - neo4j
+    networks:
+      default:
+        aliases:
+          - ai-chat-service
+    restart: unless-stopped
+
+  api_gateway:
+    build: ./api_gateway
+    container_name: api_gateway
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
+    environment:
+      CUSTOMER_SERVICE_URL: http://customer-service:8001
+      PRODUCT_SERVICE_URL: http://product-service:8002
+      CART_SERVICE_URL: http://cart-service:8004
+      STAFF_SERVICE_URL: http://staff-service:8005
+      AI_CHAT_SERVICE_URL: http://ai-chat-service:8006
+      INTERACTION_SERVICE_URL: http://interaction-service:8007
+    volumes:
+      - ./api_gateway:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - customer_service
+      - product_service
+      - cart_service
+      - staff_service
+      - ai_chat_service
+      - interaction_service
+    networks:
+      default:
+        aliases:
+          - api-gateway
+          
+volumes:
+  product_data:
+  interaction_data:
+  neo4j_data:
+  neo4j_logs:

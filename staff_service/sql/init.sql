@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS staff_users (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(150) NOT NULL UNIQUE,
+  full_name VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS staff_tokens (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  staff_id BIGINT NOT NULL,
+  token VARCHAR(64) NOT NULL UNIQUE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (staff_id) REFERENCES staff_users(id)
+);
+
+INSERT INTO staff_users (username, full_name, password_hash, is_admin)
+VALUES ('admin', 'Admin Staff', 'pbkdf2_sha256$1200000$XxplXlRR2nAgO0WDNxJX2T$0iMVzlaeo8OBNFfDa0824puPexP0xJOBouo7dfCxJwI=', TRUE)
+ON DUPLICATE KEY UPDATE username=username;

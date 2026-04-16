@@ -1,0 +1,26 @@
+{% extends 'staff/base.html' %}
+
+{% block title %}Edit Product{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width:720px;margin:0 auto;">
+    <h2 style="margin:0 0 10px;">Edit {{ product_type|title }}</h2>
+
+    {% if not item %}
+      <div class="muted">Product not found.</div>
+    {% else %}
+      <form method="post">
+        {% csrf_token %}
+        <label>Name</label><input name="name" value="{{ item.name }}" required />
+        <label>Brand</label><input name="brand" value="{{ item.brand }}" required />
+        <label>Description</label><textarea name="description" rows="4" required>{{ item.description }}</textarea>
+        <label>Price</label><input name="price" value="{{ item.price }}" required />
+        <label>Stock</label><input name="stock" type="number" min="0" value="{{ item.stock }}" required />
+        <label>Image URL</label><input name="image_url" value="{{ item.image_url }}" required />
+        <div style="height:12px;"></div>
+        <button class="btn" type="submit">Save</button>
+        <a class="btn secondary" href="/staff/dashboard/">Cancel</a>
+      </form>
+    {% endif %}
+  </div>
+{% endblock %}

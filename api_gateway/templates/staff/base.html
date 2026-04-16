@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Staff{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --text: #111111;
+      --muted: #5b647a;
+      --border: #e6e8ef;
+      --border-2: #d8dbe7;
+      --accent: #ffcc00;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+    .container { max-width: 1120px; margin: 0 auto; padding: 16px; }
+
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); }
+    .header-top { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 14px 16px; }
+
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+    .brand-mark { width: 34px; height: 34px; border-radius: 10px; background: var(--accent); display: grid; place-items: center; font-weight: 900; }
+    .brand-name { font-size: 18px; font-weight: 900; letter-spacing: -0.2px; }
+    .brand-sub { color: var(--muted); font-weight: 700; font-size: 12px; }
+
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    @media (max-width: 1000px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 820px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+    .btn { display: inline-block; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-2); background: #111; color: #fff; text-decoration: none; cursor: pointer; font-weight: 800; }
+    .btn.secondary { background: #fff; color: #111; }
+    .btn.accent { background: var(--accent); color: #111; border-color: rgba(0,0,0,0.08); }
+
+    input, textarea { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border-2); background: #fff; }
+    label { font-size: 13px; font-weight: 800; display: block; margin: 10px 0 6px; }
+
+    .muted { color: var(--muted); }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #eef1ff; color: #334; font-size: 12px; font-weight: 800; border: 1px solid #e6eaff; }
+
+    .page-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .page-title h2 { margin: 0; letter-spacing: -0.3px; }
+
+    .tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+    .tab { text-decoration: none; color: var(--text); font-weight: 900; font-size: 13px; padding: 8px 12px; border-radius: 999px; background: #f2f4fb; border: 1px solid #eef1ff; }
+    .tab.active { background: #111; color: #fff; border-color: #111; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-top container">
+      <a class="brand" href="/staff/dashboard/">
+        <div class="brand-mark">S</div>
+        <div>
+          <div class="brand-name">Staff Portal</div>
+          <div class="brand-sub">Manage products & orders</div>
+        </div>
+      </a>
+
+      <div class="row">
+        <a class="btn secondary" href="/">Customer site</a>
+        {% if request.session.staff_token %}
+          <span class="badge">Staff</span>
+          <a class="btn secondary" href="/staff/logout/">Logout</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    {% if error %}<div class="card" style="border-color:#ffd0d0;background:#fff5f5;">{{ error }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

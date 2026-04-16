@@ -1,0 +1,23 @@
+CREATE CONSTRAINT user_id IF NOT EXISTS
+FOR (u:User)
+REQUIRE u.id IS UNIQUE;
+
+CREATE CONSTRAINT product_id IF NOT EXISTS
+FOR (p:Product)
+REQUIRE p.id IS UNIQUE;
+
+CREATE CONSTRAINT brand_id IF NOT EXISTS
+FOR (b:Brand)
+REQUIRE b.id IS UNIQUE;
+
+CREATE CONSTRAINT query_text IF NOT EXISTS
+FOR (q:Query)
+REQUIRE q.text IS UNIQUE;
+
+CREATE CONSTRAINT chat_message_id IF NOT EXISTS
+FOR (m:ChatMessage)
+REQUIRE m.id IS UNIQUE;
+
+CREATE INDEX product_type IF NOT EXISTS
+FOR (p:Product)
+ON (p.product_type);

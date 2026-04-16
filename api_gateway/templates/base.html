@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Shop{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --text: #111111;
+      --muted: #5b647a;
+      --border: #e6e8ef;
+      --border-2: #d8dbe7;
+      --accent: #ffcc00;
+      --accent-2: #ffe17a;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+    .container { max-width: 1120px; margin: 0 auto; padding: 16px; }
+
+    .promo {
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      color: #111;
+      font-weight: 800;
+    }
+    .promo-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; }
+    .promo small { font-weight: 700; opacity: 0.9; }
+
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); }
+    .header-top { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 14px 16px; }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+    .brand-mark { width: 34px; height: 34px; border-radius: 10px; background: var(--accent); display: grid; place-items: center; font-weight: 900; }
+    .brand-name { font-size: 18px; font-weight: 900; letter-spacing: -0.2px; }
+    .brand-sub { color: var(--muted); font-weight: 700; font-size: 12px; }
+
+    .searchbar { flex: 1; max-width: 560px; margin: 0 8px; }
+    .searchbar form { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 999px; border: 1px solid var(--border); background: #f8f9fd; }
+    .searchbar input { border: 0; outline: none; background: transparent; padding: 0; width: 100%; }
+    .searchbar button { border: 0; background: transparent; font-weight: 800; cursor: pointer; }
+
+    .navcats { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 16px 14px; }
+    .navcats a { text-decoration: none; color: var(--text); font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 999px; background: #f2f4fb; border: 1px solid #eef1ff; }
+    .navcats a:hover { background: #eceffd; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    @media (max-width: 1000px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 820px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+    .btn { display: inline-block; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-2); background: #111; color: #fff; text-decoration: none; cursor: pointer; font-weight: 800; }
+    .btn.secondary { background: #fff; color: #111; }
+    .btn.accent { background: var(--accent); color: #111; border-color: rgba(0,0,0,0.08); }
+
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    input, textarea { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border-2); background: #fff; }
+    label { font-size: 13px; font-weight: 800; display: block; margin: 10px 0 6px; }
+    .muted { color: var(--muted); }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #eef1ff; color: #334; font-size: 12px; font-weight: 800; border: 1px solid #e6eaff; }
+
+    .page-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .page-title h2 { margin: 0; letter-spacing: -0.3px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+    .soft-error { border-color:#ffd0d0; background:#fff5f5; }
+
+    .chat-widget {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 999;
+      width: min(380px, calc(100vw - 24px));
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
+      background: #fff;
+      overflow: hidden;
+      transform: translateY(0);
+      transition: all 0.2s ease;
+    }
+    .chat-widget.closed .chat-body { display: none; }
+    .chat-head {
+      background: linear-gradient(135deg, #0b1f3a, #124e78);
+      color: #fff;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .chat-body { padding: 10px; }
+    .chat-log {
+      height: 260px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      background: #f8f9ff;
+      margin-bottom: 8px;
+    }
+    .chat-msg { margin: 8px 0; font-size: 14px; }
+    .chat-msg.user { text-align: right; }
+    .chat-msg span {
+      display: inline-block;
+      padding: 8px 10px;
+      border-radius: 10px;
+      max-width: 92%;
+      white-space: pre-wrap;
+    }
+    .chat-msg.user span { background: #111; color: #fff; }
+    .chat-msg.bot span { background: #e9eefc; color: #17213b; }
+    .chat-form { display: flex; gap: 8px; }
+    .chat-form input { border-radius: 10px; }
+    .chat-form button { border-radius: 10px; border: 0; padding: 0 12px; background: #124e78; color: #fff; font-weight: 800; }
+
+    @media (max-width: 560px) {
+      .chat-widget {
+        right: 12px;
+        left: 12px;
+        bottom: 12px;
+        width: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-top container">
+      <a class="brand" href="/">
+        <div class="brand-mark">M</div>
+        <div>
+          <div class="brand-name">MicroShop</div>
+          <div class="brand-sub">Laptops & clothes</div>
+        </div>
+      </a>
+
+      <div class="searchbar">
+        <form method="get" action="/products/laptops/">
+          <input name="search" placeholder="Search products (e.g. mac, pro, polo)" />
+          <button type="submit">Search</button>
+        </form>
+      </div>
+
+      <div class="row">
+        <a class="btn secondary" href="/cart/">Cart</a>
+        <a class="btn secondary" href="/staff/dashboard/">staff</a>
+        
+        {% if request.session.customer_token %}
+          <span class="badge">Customer</span>
+          <a class="btn secondary" href="/customer/logout/">Logout</a>
+        {% else %}
+          <a class="btn secondary" href="/customer/login/">Login</a>
+          <a class="btn accent" href="/customer/register/">Register</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="navcats container">
+      <a href="/products/laptops/">Laptops</a>
+      <a href="/products/clothes/">Clothes</a>
+    </div>
+  </div>
+
+  <div class="container">
+    {% if error %}<div class="card soft-error">{{ error }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </div>
+
+  <div id="chatWidget" class="chat-widget closed">
+    <div class="chat-head" id="chatToggle">
+      <span>AI Tư vấn (RAG)</span>
+      <span id="chatIcon">+</span>
+    </div>
+    <div class="chat-body">
+      <div class="chat-log" id="chatLog">
+        <div class="chat-msg bot"><span>Xin chào, mình là chatbot tư vấn sản phẩm. Bạn cần laptop văn phòng, gaming hay đồ hoạ?</span></div>
+      </div>
+      <form class="chat-form" id="chatForm">
+        <input id="chatInput" placeholder="Nhập câu hỏi..." />
+        <button type="submit">Gửi</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const widget = document.getElementById('chatWidget');
+      const toggle = document.getElementById('chatToggle');
+      const icon = document.getElementById('chatIcon');
+      const form = document.getElementById('chatForm');
+      const input = document.getElementById('chatInput');
+      const log = document.getElementById('chatLog');
+
+      function appendMessage(role, text) {
+        const row = document.createElement('div');
+        row.className = 'chat-msg ' + role;
+        const bubble = document.createElement('span');
+        bubble.textContent = text;
+        row.appendChild(bubble);
+        log.appendChild(row);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      toggle.addEventListener('click', function () {
+        widget.classList.toggle('closed');
+        icon.textContent = widget.classList.contains('closed') ? '+' : 'x';
+      });
+
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const message = (input.value || '').trim();
+        if (!message) {
+          return;
+        }
+
+        appendMessage('user', message);
+        input.value = '';
+
+        try {
+          const response = await fetch('/api/chat/message/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: message,
+              context: {
+                page: window.location.pathname
+              }
+            })
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            appendMessage('bot', data.detail || 'Khong the xu ly cau hoi luc nay.');
+            return;
+          }
+
+          appendMessage('bot', data.answer || 'Minh chua co cau tra loi phu hop.');
+        } catch (err) {
+          appendMessage('bot', 'Service tam thoi khong kha dung. Vui long thu lai sau.');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

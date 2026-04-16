@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Cart{% endblock %}
+
+{% block content %}
+  <h2 style="margin:0 0 10px;">Your Cart</h2>
+
+  {% if not cart %}
+    <div class="card">Cart not available.</div>
+  {% else %}
+    <div class="card">
+      {% if cart.items|length == 0 %}
+        <div class="muted">Your cart is empty.</div>
+      {% else %}
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Price</th>
+              <th>Qty</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in cart.items %}
+              <tr>
+                <td>
+                  <div class="row" style="align-items:flex-start;">
+                    {% if it.image_url %}<img src="{{ it.image_url }}" style="width:56px;height:56px;object-fit:contain;background:#fff;border-radius:8px;border:1px solid #e6e8ef;" />{% endif %}
+                    <div>
+                      <div style="font-weight:700;">{{ it.product_name }}</div>
+                      <div class="muted">{{ it.product_type }} #{{ it.product_id }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>${{ it.unit_price }}</td>
+                <td>
+                  <form method="post" action="/cart/items/{{ it.id }}/update/" class="row">
+                    {% csrf_token %}
+                    <input type="number" name="quantity" min="1" value="{{ it.quantity }}" style="max-width:120px;" />
+                    <button class="btn secondary" type="submit">Update</button>
+                  </form>
+                </td>
+                <td>
+                  <form method="post" action="/cart/items/{{ it.id }}/delete/">
+                    {% csrf_token %}
+                    <button class="btn secondary" type="submit">Remove</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div style="height:12px;"></div>
+        <form method="post" action="/cart/checkout/">
+          {% csrf_token %}
+          <button class="btn" type="submit">Checkout</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}
