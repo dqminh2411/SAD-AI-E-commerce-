@@ -91,7 +91,7 @@ services:
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
-      - ./neo4j_import:/var/lib/neo4j/import
+      - ./neo4j/neo4j_import:/var/lib/neo4j/import
       - ./neo4j/cypher:/scripts:ro
     restart: unless-stopped
 

@@ -1,0 +1,121 @@
+// Import interactions for 100 users (10 behaviors) from neo4j_import/fake_interactions_100u.csv
+// Neo4j reads this file as: file:///fake_interactions_100u.csv
+
+LOAD CSV WITH HEADERS FROM 'file:///fake_interactions_100u.csv' AS row
+WITH row
+CALL {
+  WITH row
+  WITH row, datetime(row.created_at) AS ts
+  MERGE (u:User {id: row.user_id})
+  WITH row, ts, u,
+       CASE WHEN row.product_id IS NULL OR row.product_id = '' THEN null ELSE toInteger(row.product_id) END AS pid
+
+  // Product events: ensure Product exists (fallback if products weren't imported yet)
+  CALL {
+    WITH row, pid
+    WITH row, pid WHERE pid IS NOT NULL
+    MERGE (p:Product {id: pid})
+    ON CREATE SET p.product_type = coalesce(row.product_type, 'LAPTOP')
+    RETURN p
+    UNION
+    WITH row, pid
+    WITH row, pid WHERE pid IS NULL
+    RETURN null AS p
+  }
+  WITH row, ts, u, p
+
+// 1) SEARCHED -> Query
+FOREACH (_ IN CASE WHEN row.event_type = 'search' AND row.query_text IS NOT NULL AND row.query_text <> '' THEN [1] ELSE [] END |
+  MERGE (q:Query {text: row.query_text})
+  MERGE (u)-[r:SEARCHED]->(q)
+  ON CREATE SET r.cnt = 1, r.last_ts = ts, r.w = 1
+  ON MATCH  SET r.cnt = coalesce(r.cnt, 0) + 1,
+                r.last_ts = ts,
+                r.w = coalesce(r.w, 0) + 1
+)
+
+// 2) FILTERED -> Query
+FOREACH (_ IN CASE WHEN row.event_type = 'filter' AND row.query_text IS NOT NULL AND row.query_text <> '' THEN [1] ELSE [] END |
+  MERGE (q:Query {text: row.query_text})
+  MERGE (u)-[r:FILTERED]->(q)
+  ON CREATE SET r.cnt = 1, r.last_ts = ts, r.w = 1
+  ON MATCH  SET r.cnt = coalesce(r.cnt, 0) + 1,
+                r.last_ts = ts,
+                r.w = coalesce(r.w, 0) + 1
+)
+
+// 3) SORTED -> Query
+FOREACH (_ IN CASE WHEN row.event_type = 'sort' AND row.query_text IS NOT NULL AND row.query_text <> '' THEN [1] ELSE [] END |
+  MERGE (q:Query {text: row.query_text})
+  MERGE (u)-[r:SORTED]->(q)
+  ON CREATE SET r.cnt = 1, r.last_ts = ts, r.w = 1
+  ON MATCH  SET r.cnt = coalesce(r.cnt, 0) + 1,
+                r.last_ts = ts,
+                r.w = coalesce(r.w, 0) + 1
+)
+
+// 4) PAGINATED -> Page
+FOREACH (_ IN CASE WHEN row.event_type = 'paginate' AND row.page IS NOT NULL AND row.page <> '' THEN [1] ELSE [] END |
+  MERGE (pg:Page {name: row.page})
+  MERGE (u)-[r:PAGINATED]->(pg)
+  ON CREATE SET r.cnt = 1, r.last_ts = ts, r.w = 1
+  ON MATCH  SET r.cnt = coalesce(r.cnt, 0) + 1,
+                r.last_ts = ts,
+                r.w = coalesce(r.w, 0) + 1
+)
+
+// 5) VIEWED -> Product (w += 1)
+FOREACH (_ IN CASE WHEN row.event_type = 'view' AND p IS NOT NULL THEN [1] ELSE [] END |
+  MERGE (u)-[r:VIEWED]->(p)
+  ON CREATE SET r.cnt = 1, r.last_ts = ts, r.w = 1
+  ON MATCH  SET r.cnt = coalesce(r.cnt, 0) + 1,
+                r.last_ts = ts,
+                r.w = coalesce(r.w, 0) + 1
+)
+
+// 6) CARTED -> Product (w += 3)
+FOREACH (_ IN CASE WHEN row.event_type = 'add_to_cart' AND p IS NOT NULL THEN [1] ELSE [] END |
+  MERGE (u)-[r:CARTED]->(p)
+  ON CREATE SET r.cnt = 1, r.last_ts = ts, r.w = 3
+  ON MATCH  SET r.cnt = coalesce(r.cnt, 0) + 1,
+                r.last_ts = ts,
+                r.w = coalesce(r.w, 0) + 3
+)
+
+// 7) REMOVED_FROM_CART -> Product
+FOREACH (_ IN CASE WHEN row.event_type = 'remove_from_cart' AND p IS NOT NULL THEN [1] ELSE [] END |
+  MERGE (u)-[r:REMOVED_FROM_CART]->(p)
+  ON CREATE SET r.cnt = 1, r.last_ts = ts, r.w = 1
+  ON MATCH  SET r.cnt = coalesce(r.cnt, 0) + 1,
+                r.last_ts = ts,
+                r.w = coalesce(r.w, 0) + 1
+)
+
+// 8) STARTED_CHECKOUT -> Checkout
+FOREACH (_ IN CASE WHEN row.event_type = 'checkout_start' THEN [1] ELSE [] END |
+  MERGE (c:Checkout {id: row.event_id})
+  SET c.ts = ts,
+      c.page = row.page
+  MERGE (u)-[:STARTED_CHECKOUT {ts: ts}]->(c)
+)
+
+// 9) PURCHASED -> Product (w += 10)
+FOREACH (_ IN CASE WHEN row.event_type = 'purchase' AND p IS NOT NULL THEN [1] ELSE [] END |
+  MERGE (u)-[r:PURCHASED]->(p)
+  ON CREATE SET r.cnt = 1, r.last_ts = ts, r.w = 10
+  ON MATCH  SET r.cnt = coalesce(r.cnt, 0) + 1,
+                r.last_ts = ts,
+                r.w = coalesce(r.w, 0) + 10
+)
+
+// 10) CHATTED -> ChatMessage
+FOREACH (_ IN CASE WHEN row.event_type = 'chat' AND row.query_text IS NOT NULL AND row.query_text <> '' THEN [1] ELSE [] END |
+  MERGE (m:ChatMessage {id: row.event_id})
+  SET m.text = row.query_text,
+      m.page = row.page,
+      m.product_type = row.product_type,
+      m.ts = ts
+  MERGE (u)-[:CHATTED {ts: ts}]->(m)
+)
+} IN TRANSACTIONS OF 1000 ROWS
+RETURN count(*) AS imported_rows;

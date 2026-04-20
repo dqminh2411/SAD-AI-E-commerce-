@@ -1,5 +1,6 @@
 import os
 import json
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from urllib.parse import urlparse, parse_qs
 
 import requests
@@ -18,6 +19,17 @@ AI_CHAT_SERVICE_URL = os.environ.get('AI_CHAT_SERVICE_URL', 'http://ai-chat-serv
 INTERACTION_SERVICE_URL = os.environ.get('INTERACTION_SERVICE_URL', 'http://interaction-service:8007')
 
 
+def _format_vnd(amount) -> str:
+	if amount is None:
+		return ''
+	try:
+		d = Decimal(str(amount)).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+	except (InvalidOperation, ValueError, TypeError):
+		return ''
+	value = int(d)
+	return f"{value:,}".replace(',', '.') + ' VND'
+
+
 def _normalize_product_for_template(item: dict) -> dict:
 	# Normalizes product_service API shape into the existing templates' expected keys.
 	brand = item.get('brand')
@@ -30,7 +42,8 @@ def _normalize_product_for_template(item: dict) -> dict:
 
 	price = item.get('base_price')
 	if price is None:
-		price = item.get('price')
+		price = item.get('price')	
+	price_display = _format_vnd(price)
 
 	stock = item.get('stock')
 	if stock is None:
@@ -116,6 +129,7 @@ def _normalize_product_for_template(item: dict) -> dict:
 		'description': item.get('description', ''),
 		'brand': brand.get('name') if isinstance(brand, dict) else brand,
 		'price': price,
+		'price_display': price_display,
 		'stock': stock,
 		'image_url': image_url,
 		'currency': item.get('currency'),

@@ -28,7 +28,19 @@ WITH u, $event_type AS et,
      $page AS page,
      $product_type AS pt,
      datetime($created_at) AS ts
-OPTIONAL MATCH (p:Product {id: pid})
+
+// Ensure Product node exists for product-related events.
+CALL {
+  WITH pid, pt
+  WITH pid, pt WHERE pid IS NOT NULL
+  MERGE (p:Product {id: pid})
+  ON CREATE SET p.product_type = pt
+  RETURN p
+  UNION
+  WITH pid, pt
+  WITH pid, pt WHERE pid IS NULL
+  RETURN null AS p
+}
 WITH u, et, pid, qt, eid, page, pt, ts, p
 
 // SEARCHED -> Query
