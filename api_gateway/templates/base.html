@@ -71,64 +71,87 @@
 
     .soft-error { border-color:#ffd0d0; background:#fff5f5; }
 
-    .chat-widget {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      z-index: 999;
-      width: min(380px, calc(100vw - 24px));
-      border-radius: 16px;
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 999px;
       border: 1px solid var(--border);
-      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
+      background: #fff;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .pill.secondary { background: #f8f9fd; }
+    .pill.active { border-color: rgba(0,0,0,0.14); background: #111; color: #fff; }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid #eef1ff;
+      background: #f2f4fb;
+      color: var(--text);
+      font-weight: 800;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .chip:hover { background: #eceffd; }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 14px;
+      align-items: start;
+    }
+    @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+
+    .chat-shell {
+      border: 1px solid var(--border);
+      border-radius: 18px;
       background: #fff;
       overflow: hidden;
-      transform: translateY(0);
-      transition: all 0.2s ease;
     }
-    .chat-widget.closed .chat-body { display: none; }
-    .chat-head {
-      background: linear-gradient(135deg, #0b1f3a, #124e78);
-      color: #fff;
-      padding: 12px 14px;
+    .chat-shell-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-weight: 800;
-      cursor: pointer;
+      gap: 12px;
+      padding: 14px 14px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      color: #111;
+      font-weight: 900;
     }
-    .chat-body { padding: 10px; }
+    .chat-shell-body { padding: 12px; }
     .chat-log {
-      height: 260px;
+      height: 420px;
       overflow: auto;
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 8px;
+      border-radius: 14px;
+      padding: 12px;
       background: #f8f9ff;
-      margin-bottom: 8px;
     }
-    .chat-msg { margin: 8px 0; font-size: 14px; }
+    .chat-msg { margin: 10px 0; font-size: 14px; }
     .chat-msg.user { text-align: right; }
     .chat-msg span {
       display: inline-block;
-      padding: 8px 10px;
-      border-radius: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
       max-width: 92%;
       white-space: pre-wrap;
+      line-height: 1.5;
     }
     .chat-msg.user span { background: #111; color: #fff; }
     .chat-msg.bot span { background: #e9eefc; color: #17213b; }
-    .chat-form { display: flex; gap: 8px; }
-    .chat-form input { border-radius: 10px; }
-    .chat-form button { border-radius: 10px; border: 0; padding: 0 12px; background: #124e78; color: #fff; font-weight: 800; }
-
-    @media (max-width: 560px) {
-      .chat-widget {
-        right: 12px;
-        left: 12px;
-        bottom: 12px;
-        width: auto;
-      }
-    }
+    .chat-form { display: flex; gap: 10px; margin-top: 10px; }
+    .chat-form input { border-radius: 14px; }
+    .chat-form button { border-radius: 14px; }
   </style>
 </head>
 <body>
@@ -167,6 +190,8 @@
     <div class="navcats container">
       <a href="/products/laptops/">Laptops</a>
       <a href="/products/clothes/">Clothes</a>
+      <a href="/recommendations/">Gợi ý</a>
+      <a href="/chat/">AI Chat</a>
     </div>
   </div>
 
@@ -175,79 +200,5 @@
     {% block content %}{% endblock %}
   </div>
 
-  <div id="chatWidget" class="chat-widget closed">
-    <div class="chat-head" id="chatToggle">
-      <span>AI Tư vấn (RAG)</span>
-      <span id="chatIcon">+</span>
-    </div>
-    <div class="chat-body">
-      <div class="chat-log" id="chatLog">
-        <div class="chat-msg bot"><span>Xin chào, mình là chatbot tư vấn sản phẩm. Bạn cần laptop văn phòng, gaming hay đồ hoạ?</span></div>
-      </div>
-      <form class="chat-form" id="chatForm">
-        <input id="chatInput" placeholder="Nhập câu hỏi..." />
-        <button type="submit">Gửi</button>
-      </form>
-    </div>
-  </div>
-
-  <script>
-    (function () {
-      const widget = document.getElementById('chatWidget');
-      const toggle = document.getElementById('chatToggle');
-      const icon = document.getElementById('chatIcon');
-      const form = document.getElementById('chatForm');
-      const input = document.getElementById('chatInput');
-      const log = document.getElementById('chatLog');
-
-      function appendMessage(role, text) {
-        const row = document.createElement('div');
-        row.className = 'chat-msg ' + role;
-        const bubble = document.createElement('span');
-        bubble.textContent = text;
-        row.appendChild(bubble);
-        log.appendChild(row);
-        log.scrollTop = log.scrollHeight;
-      }
-
-      toggle.addEventListener('click', function () {
-        widget.classList.toggle('closed');
-        icon.textContent = widget.classList.contains('closed') ? '+' : 'x';
-      });
-
-      form.addEventListener('submit', async function (event) {
-        event.preventDefault();
-        const message = (input.value || '').trim();
-        if (!message) {
-          return;
-        }
-
-        appendMessage('user', message);
-        input.value = '';
-
-        try {
-          const response = await fetch('/api/chat/message/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: message,
-              context: {
-                page: window.location.pathname
-              }
-            })
-          });
-          const data = await response.json();
-          if (!response.ok) {
-            appendMessage('bot', data.detail || 'Khong the xu ly cau hoi luc nay.');
-            return;
-          }
-
-          appendMessage('bot', data.answer || 'Minh chua co cau tra loi phu hop.');
-        } catch (err) {
-          appendMessage('bot', 'Service tam thoi khong kha dung. Vui long thu lai sau.');
-        }
-      });
-    })();
-  </script>
 </body>
 </html>

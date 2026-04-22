@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import time
@@ -32,6 +33,9 @@ VECTOR_STORE_DIR = Path(os.environ.get('VECTOR_STORE_DIR', BASE_DIR / 'vector_st
 FAISS_INDEX_PATH = Path(os.environ.get('FAISS_INDEX_PATH', VECTOR_STORE_DIR / 'kb.index'))
 FAISS_META_PATH = Path(os.environ.get('FAISS_META_PATH', VECTOR_STORE_DIR / 'kb_meta.json'))
 VECTORIZER_PATH = Path(os.environ.get('VECTORIZER_PATH', VECTOR_STORE_DIR / 'tfidf_svd.joblib'))
+
+logger = logging.getLogger(__name__)
+_GEMINI_BACKOFF_UNTIL_TS = 0.0
 
 
 @dataclass
@@ -312,22 +316,18 @@ def _fetch_graph_context(user_id: str, product_type: str | None, limit: int = 5)
     limit = max(1, min(int(limit), 20))
     product_type = product_type.strip().upper() if product_type else None
 
+    # Dataset imported by import_interactions_500u.cypher may only have minimal Product
+    # properties (id, product_type) and no Brand nodes/relationships.
     top_products_cypher = """
-MATCH (u:User {id: $user_id})-[r:VIEWED|CARTED|PURCHASED]->(p:Product)
+MATCH (u:User {id: $user_id})-[r:VIEWED|CARTED|WISHLISTED|PURCHASED]->(p:Product)
 WHERE $product_type IS NULL OR p.product_type = $product_type
 WITH p, sum(coalesce(r.w, 1)) AS score, max(coalesce(r.last_ts, datetime('1970-01-01T00:00:00Z'))) AS last_ts
-OPTIONAL MATCH (p)-[:BRANDED_BY]->(b:Brand)
-RETURN p.id AS product_id, p.name AS name, p.base_price AS base_price, p.currency AS currency,
-       b.name AS brand, score AS score
+RETURN p.id AS product_id,
+       coalesce(p.name, 'Product #' + toString(p.id)) AS name,
+       p.base_price AS base_price,
+       coalesce(p.currency, 'VND') AS currency,
+       score AS score
 ORDER BY score DESC, last_ts DESC
-LIMIT $limit
-""".strip()
-
-    brand_affinity_cypher = """
-MATCH (u:User {id: $user_id})-[r:VIEWED|CARTED|PURCHASED]->(p:Product)-[:BRANDED_BY]->(b:Brand)
-WHERE $product_type IS NULL OR p.product_type = $product_type
-RETURN b.name AS brand, sum(coalesce(r.w, 1)) AS score
-ORDER BY score DESC
 LIMIT $limit
 """.strip()
 
@@ -342,19 +342,11 @@ LIMIT $limit
                     limit=limit,
                 )
             ]
-            brand_affinity = [
-                dict(record)
-                for record in session.run(
-                    brand_affinity_cypher,
-                    user_id=user_id,
-                    product_type=product_type,
-                    limit=limit,
-                )
-            ]
 
         return {
             'top_products': top_products,
-            'brand_affinity': brand_affinity,
+            # Keep response shape stable for the rest of the pipeline.
+            'brand_affinity': [],
         }
     except Exception:
         return {}
@@ -563,6 +555,10 @@ def _generate_with_gemini(
 ):
     if not GEMINI_API_KEY:
         return None
+    global _GEMINI_BACKOFF_UNTIL_TS
+    now = time.time()
+    if now < _GEMINI_BACKOFF_UNTIL_TS:
+        return None
 
     snippets = '\n\n'.join(
         [f"[{idx + 1}] {chunk.title} ({chunk.file_path})\n{chunk.chunk_excerpt}" for idx, chunk in enumerate(chunks)]
@@ -602,11 +598,23 @@ Yêu cầu đầu ra:
 - Nếu catalog trống/không phù hợp, nêu rõ và hỏi thêm 1-2 câu để lọc nhu cầu.
 """.strip()
 
-    configure(api_key=GEMINI_API_KEY)
-    model = GenerativeModel(model_name=GEMINI_MODEL)
-    response = model.generate_content(prompt)
-    text = getattr(response, 'text', None)
-    return text.strip() if text else None
+    try:
+        configure(api_key=GEMINI_API_KEY)
+        model = GenerativeModel(model_name=GEMINI_MODEL)
+        response = model.generate_content(
+            prompt,
+            request_options={'timeout': 40},
+        )
+        text = getattr(response, 'text', None)
+        return text.strip() if text else None
+    except Exception as exc:
+        # Common case: 429 ResourceExhausted / temporary quota or rate-limit.
+        exc_text = str(exc).lower()
+        if 'resourceexhausted' in exc_text or '429' in exc_text or 'quota' in exc_text or 'rate limit' in exc_text:
+            # Respect common retry windows and avoid immediate repeated calls.
+            _GEMINI_BACKOFF_UNTIL_TS = time.time() + 45
+        logger.warning("Gemini generation failed, using fallback answer: %s", exc)
+        return None
 
 
 def _suggest_actions(profile: dict[str, Any]):
@@ -677,6 +685,8 @@ class ChatbotService:
 
         return {
             'answer': answer,
+            'product_type': product_type,
+            'recommended_products': catalog_products[:3],
             'user_segment': profile.get('segment', 'new_user'),
             'rag_sources': [
                 {

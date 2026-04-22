@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Gợi ý{% endblock %}
+
+{% block content %}
+  <div class="page-title">
+    <div>
+      <div class="muted" style="font-weight:800;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">Personalized</div>
+      <h2>Gợi ý cho bạn</h2>
+      <div class="muted">Dựa trên lịch sử tương tác (view / add to cart / purchase).</div>
+    </div>
+    <div class="row" style="gap:8px;">
+      <a class="pill {% if active_tab == 'laptops' %}active{% else %}secondary{% endif %}" href="?tab=laptops">Laptops</a>
+      <a class="pill {% if active_tab == 'clothes' %}active{% else %}secondary{% endif %}" href="?tab=clothes">Clothes</a>
+    </div>
+  </div>
+
+  <div style="height:14px;"></div>
+
+  {% if note %}
+    <div class="card" style="border-radius:18px;">
+      <div class="badge">TODO</div>
+      <div style="height:8px;"></div>
+      <div class="muted" style="font-weight:900;">{{ note }}</div>
+      <div style="height:8px;"></div>
+      <div class="muted" style="line-height:1.55;">
+        Khi implement, trang này sẽ hiển thị danh sách sản phẩm đề xuất và ưu tiên theo điểm tương tác (purchase &gt; cart &gt; view).
+      </div>
+    </div>
+    <div style="height:14px;"></div>
+  {% endif %}
+
+  <div class="grid">
+    {% for p in items %}
+      <a class="card" href="/products/{% if active_tab == 'clothes' %}clothes{% else %}laptops{% endif %}/{{ p.id }}/" style="text-decoration:none;color:inherit;display:block;">
+        <div style="border-radius:12px;background:#f8f9fd;border:1px solid #eef1ff;padding:10px;">
+          <img src="{{ p.image_url }}" alt="{{ p.name }}" style="width:100%;height:170px;object-fit:contain;" />
+        </div>
+        <div style="height:10px;"></div>
+        <div style="min-height:44px;font-weight:900;line-height:1.1;">{{ p.name }}</div>
+        <div class="muted" style="font-weight:800;margin-top:6px;">{{ p.brand }}</div>
+        <div style="height:10px;"></div>
+        <div class="row" style="justify-content:space-between;">
+          <div style="font-weight:900;font-size:18px;">{{ p.price_display }}</div>
+          <span class="btn secondary">View</span>
+        </div>
+      </a>
+    {% empty %}
+      <div class="card" style="grid-column: 1 / -1; border-radius:18px;">
+        <div class="muted">Chưa có gợi ý để hiển thị.</div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

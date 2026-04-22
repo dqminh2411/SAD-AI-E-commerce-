@@ -10,9 +10,11 @@ services:
     volumes:
       - ./customer_service/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -ppassword"]
+      interval: 10s
       timeout: 20s
       retries: 10
+      start_period: 30s
 
   staff_mysql:
     image: mysql:8.0
@@ -25,9 +27,11 @@ services:
     volumes:
       - ./staff_service/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -ppassword"]
+      interval: 10s
       timeout: 20s
       retries: 10
+      start_period: 30s
 
   cart_postgres:
     image: postgres:16-alpine
@@ -73,7 +77,7 @@ services:
     volumes:
       - interaction_data:/var/lib/postgresql/data
       - ./interaction_service/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./neo4j_import/fake_interactions.csv:/docker-entrypoint-initdb.d/fake_interactions.csv
+      - ./neo4j_import/data_user500.csv:/docker-entrypoint-initdb.d/data_user500.csv
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d interaction_db"]
       timeout: 20s

@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Chat{% endblock %}
+
+{% block content %}
+  <style>
+    .chat-page-vn {
+      font-family: "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+    }
+    .chat-product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 8px 0 2px;
+    }
+    .chat-product-card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .chat-product-card img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      background: #f5f6fb;
+      display: block;
+    }
+    .chat-product-body { padding: 8px 10px; }
+    .chat-product-name {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+      min-height: 36px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .chat-product-price {
+      margin-top: 6px;
+      font-weight: 900;
+      color: #0f172a;
+    }
+  </style>
+  <div class="chat-page-vn">
+  <div class="page-title">
+    <div>
+      <div class="muted" style="font-weight:800;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;">AI Assistant</div>
+      <h2 style="display:flex;align-items:center;gap:10px;">
+        <span style="display:inline-flex;align-items:center;gap:8px;">
+          <span style="display:inline-grid;place-items:center;width:28px;height:28px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));border:1px solid rgba(0,0,0,0.06);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 2c1.2 3.6 2.2 4.6 5.8 5.8C14.2 9 13.2 10 12 13.6 10.8 10 9.8 9 6.2 7.8 9.8 6.6 10.8 5.6 12 2Z" fill="#111"/>
+              <path d="M18.2 12.4c.7 2.1 1.3 2.7 3.4 3.4-2.1.7-2.7 1.3-3.4 3.4-.7-2.1-1.3-2.7-3.4-3.4 2.1-.7 2.7-1.3 3.4-3.4Z" fill="#111" opacity="0.9"/>
+              <path d="M6.2 14.2c.8 2.5 1.5 3.2 4 4-2.5.8-3.2 1.5-4 4-.8-2.5-1.5-3.2-4-4 2.5-.8 3.2-1.5 4-4Z" fill="#111" opacity="0.85"/>
+            </svg>
+          </span>
+          <span>AI Chat</span>
+        </span>
+      </h2>
+      <div class="muted">Hỏi về laptop/clothes, chính sách, hoặc nhờ gợi ý sản phẩm theo nhu cầu.</div>
+    </div>
+    <div class="row" style="gap:8px;">
+      <a class="pill {% if active_tab == 'laptops' %}active{% else %}secondary{% endif %}" href="?tab=laptops">Laptops</a>
+      <a class="pill {% if active_tab == 'clothes' %}active{% else %}secondary{% endif %}" href="?tab=clothes">Clothes</a>
+      <button class="pill secondary" type="button" id="btnNewChat">Cuộc trò chuyện mới</button>
+    </div>
+  </div>
+
+  <div style="height:14px;"></div>
+
+  <div class="split">
+    <div class="chat-shell">
+      <div class="chat-shell-head">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="badge" style="background:#fff;">RAG</span>
+          <span>Tư vấn theo catalog + knowledge base</span>
+        </div>
+        <div class="muted" style="font-weight:900;">Tab: <span id="tabLabel">{{ active_tab|title }}</span></div>
+      </div>
+      <div class="chat-shell-body">
+        <div class="chat-log" id="chatLog">
+          <div class="chat-msg bot"><span>Xin chào, mình là chatbot tư vấn sản phẩm. Bạn cần laptop văn phòng, mỏng nhẹ, gaming hay muốn xem áo polo/sơ mi?</span></div>
+        </div>
+
+        <form class="chat-form" id="chatForm">
+          <input id="chatInput" placeholder="Nhập câu hỏi..." autocomplete="off" />
+          <button class="btn" type="submit">Gửi</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" style="border-radius:18px;">
+      <div class="badge">Gợi ý nhanh</div>
+      <h3 style="margin:10px 0 8px;letter-spacing:-0.2px;">Bạn có thể hỏi:</h3>
+      <div class="muted" style="margin-bottom:10px;">Bấm để dán vào ô chat.</div>
+
+      <div class="row" style="gap:10px;">
+        <button class="chip" type="button" data-suggest="Gợi ý laptop mỏng nhẹ cho văn phòng">Gợi ý laptop mỏng nhẹ cho văn phòng</button>
+        <button class="chip" type="button" data-suggest="Gợi ý laptop gaming tầm 25 triệu">Gợi ý laptop gaming tầm 25 triệu</button>
+        <button class="chip" type="button" data-suggest="Chính sách đổi trả như nào?">Chính sách đổi trả như nào?</button>
+        <button class="chip" type="button" data-suggest="Bảo hành sản phẩm bao lâu?">Bảo hành sản phẩm bao lâu?</button>
+        <button class="chip" type="button" data-suggest="Gợi ý áo polo thể thao, chất liệu thoáng mát">Gợi ý áo polo thể thao, chất liệu thoáng mát</button>
+        <button class="chip" type="button" data-suggest="Gợi ý sơ mi nam đi làm, dễ phối đồ">Gợi ý sơ mi nam đi làm, dễ phối đồ</button>
+      </div>
+
+      <div style="height:12px;"></div>
+      <div class="card" style="background:#f8f9fd;border-radius:16px;">
+        <div class="muted" style="font-weight:900;">Mẹo</div>
+        <div class="muted" style="margin-top:6px;line-height:1.55;">
+          Nêu rõ ngân sách (triệu VND), nhu cầu (văn phòng/gaming/đồ hoạ), và ưu tiên (mỏng nhẹ/pin/tản nhiệt) để gợi ý chính xác hơn.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const activeTab = "{{ active_tab }}";
+      const log = document.getElementById('chatLog');
+      const form = document.getElementById('chatForm');
+      const input = document.getElementById('chatInput');
+      const btnNewChat = document.getElementById('btnNewChat');
+      const tabLabel = document.getElementById('tabLabel');
+      const fallbackImage = 'https://via.placeholder.com/480x320?text=Product';
+
+      function appendMessage(role, text) {
+        const row = document.createElement('div');
+        row.className = 'chat-msg ' + role;
+        const bubble = document.createElement('span');
+        bubble.textContent = text;
+        row.appendChild(bubble);
+        log.appendChild(row);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      function toVnd(price) {
+        const n = Number(price);
+        if (Number.isNaN(n)) return (price || '') + '';
+        return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' VND';
+      }
+
+      function productDetailUrl(productId) {
+        const segment = activeTab === 'clothes' ? 'clothes' : 'laptops';
+        return '/products/' + segment + '/' + productId + '/';
+      }
+
+      function appendProductCards(products) {
+        if (!Array.isArray(products) || !products.length) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-product-grid';
+
+        products.forEach(function (p) {
+          if (!p || !p.id) return;
+          const a = document.createElement('a');
+          a.className = 'chat-product-card';
+          a.href = productDetailUrl(p.id);
+
+          const img = document.createElement('img');
+          img.src = p.thumbnail_url || fallbackImage;
+          img.alt = p.name || 'Product';
+          img.loading = 'lazy';
+          img.onerror = function () { img.src = fallbackImage; };
+
+          const body = document.createElement('div');
+          body.className = 'chat-product-body';
+
+          const name = document.createElement('div');
+          name.className = 'chat-product-name';
+          name.textContent = p.name || ('Product #' + p.id);
+
+          const price = document.createElement('div');
+          price.className = 'chat-product-price';
+          price.textContent = toVnd(p.base_price);
+
+          body.appendChild(name);
+          body.appendChild(price);
+          a.appendChild(img);
+          a.appendChild(body);
+          wrap.appendChild(a);
+        });
+
+        log.appendChild(wrap);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      function resetChat() {
+        log.innerHTML = '';
+        appendMessage('bot', 'Xin chào, mình là chatbot tư vấn sản phẩm. Bạn muốn tìm laptop hay clothes?');
+      }
+
+      tabLabel.textContent = activeTab === 'clothes' ? 'Clothes' : 'Laptops';
+
+      btnNewChat.addEventListener('click', function () {
+        resetChat();
+        input.focus();
+      });
+
+      document.querySelectorAll('[data-suggest]').forEach(function (el) {
+        el.addEventListener('click', function () {
+          const msg = (el.getAttribute('data-suggest') || '').trim();
+          if (!msg) return;
+          input.value = msg;
+          input.focus();
+        });
+      });
+
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const message = (input.value || '').trim();
+        if (!message) return;
+
+        appendMessage('user', message);
+        input.value = '';
+
+        try {
+          const response = await fetch('/api/chat/message/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: message,
+              context: {
+                page: window.location.pathname,
+                current_tab: activeTab === 'clothes' ? 'CLOTHES' : 'LAPTOP'
+              }
+            })
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            appendMessage('bot', data.detail || 'Không thể xử lý câu hỏi lúc này.');
+            return;
+          }
+          appendMessage('bot', data.answer || 'Mình chưa có câu trả lời phù hợp.');
+          appendProductCards(data.recommended_products);
+        } catch (err) {
+          appendMessage('bot', 'Service tạm thời không khả dụng. Vui lòng thử lại sau.');
+        }
+      });
+    })();
+  </script>
+  </div>
+{% endblock %}

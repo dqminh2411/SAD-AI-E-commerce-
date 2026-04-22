@@ -231,6 +231,120 @@ def home(request):
 	return render(request, 'home.html')
 
 
+def recommendations(request):
+	tab = (request.GET.get('tab') or 'laptops').strip().lower()
+	active_tab = 'clothes' if tab == 'clothes' else 'laptops'
+	product_type_code = 'CLOTHES' if active_tab == 'clothes' else 'LAPTOP'
+	user_id = _interaction_user_id(request)
+
+	def _safe_json(resp):
+		try:
+			return resp.json() if resp.content else {}
+		except ValueError:
+			return {}
+
+	def _to_int(x):
+		try:
+			return int(x)
+		except (TypeError, ValueError):
+			return None
+
+	def _fetch_product_detail(pid: int):
+		try:
+			r = requests.get(
+				PRODUCT_SERVICE_URL.rstrip('/') + f'/api/v1/products/{pid}/',
+				timeout=8,
+			)
+			if r.status_code != 200:
+				return None
+			return _normalize_product_for_template(_safe_json(r))
+		except requests.RequestException:
+			return None
+
+	seen_ids: set[int] = set()
+	items: list[dict] = []
+	note = None
+
+	# Ask ai_chat_service for graph context sourced from Neo4j history (VIEWED/CARTED/WISHLISTED/PURCHASED).
+	try:
+		r = requests.post(
+			AI_CHAT_SERVICE_URL.rstrip('/') + '/api/v1/chat/message/',
+			json={
+				'user_id': user_id,
+				'message': 'recommend products based on user interaction history',
+				'context': {'current_tab': product_type_code, 'page': '/recommendations/'},
+			},
+			timeout=30,
+		)
+		data = _safe_json(r) if r.status_code == 200 else {}
+	except requests.RequestException:
+		data = {}
+
+	priority_ids: list[int] = []
+	for p in (data.get('graph_context', {}) or {}).get('top_products', []) or []:
+		pid = _to_int((p or {}).get('product_id'))
+		if pid:
+			priority_ids.append(pid)
+	for p in data.get('recommended_products', []) or []:
+		pid = _to_int((p or {}).get('id'))
+		if pid:
+			priority_ids.append(pid)
+
+	for pid in priority_ids:
+		if pid in seen_ids:
+			continue
+		product = _fetch_product_detail(pid)
+		if product:
+			items.append(product)
+			seen_ids.add(pid)
+		if len(items) >= 5:
+			break
+
+	# Backfill with same-tab products to ensure at least 5 suggestions.
+	if len(items) < 5:
+		try:
+			r = requests.get(
+				PRODUCT_SERVICE_URL.rstrip('/') + '/api/v1/products/',
+				params={'product_type': product_type_code, 'page_size': 24},
+				timeout=10,
+			)
+			if r.status_code == 200:
+				payload = _safe_json(r)
+				candidates = payload.get('results', payload) if isinstance(payload, dict) else payload
+				if isinstance(candidates, list):
+					for p in candidates:
+						pid = _to_int((p or {}).get('id'))
+						if not pid or pid in seen_ids:
+							continue
+						items.append(_normalize_product_for_template(p))
+						seen_ids.add(pid)
+						if len(items) >= 5:
+							break
+		except requests.RequestException:
+			pass
+
+	if user_id == 'guest_user':
+		note = 'Đăng nhập để nhận gợi ý cá nhân hóa chính xác hơn từ lịch sử tương tác.'
+	elif not items:
+		note = 'Chưa đủ dữ liệu lịch sử trong Neo4j, đang hiển thị gợi ý mặc định.'
+	else:
+		note = 'Ưu tiên từ lịch sử VIEWED/CARTED/WISHLISTED/PURCHASED và bổ sung sản phẩm liên quan.'
+
+	ctx = {
+		'title': 'Gợi ý cho bạn',
+		'active_tab': active_tab,
+		'items': items[:12],
+		'note': note,
+	}
+	return render(request, 'recommendations/page.html', ctx)
+
+
+def chat_page(request):
+	tab = (request.GET.get('tab') or 'laptops').strip().lower()
+	active_tab = 'clothes' if tab == 'clothes' else 'laptops'
+	return render(request, 'chat/page.html', {'active_tab': active_tab})
+
+
 def product_list(request, product_type: str):
 	if product_type == 'laptops':
 		product_type_code = 'LAPTOP'
@@ -636,10 +750,18 @@ def chat_message_proxy(request):
 		r = requests.post(
 			AI_CHAT_SERVICE_URL.rstrip('/') + '/api/v1/chat/message/',
 			json=payload,
-			timeout=25,
+			timeout=60,
 		)
-		data = r.json() if r.content else {'detail': 'Empty response from ai_chat_service'}
+		try:
+			data = r.json() if r.content else {'detail': 'Empty response from ai_chat_service'}
+		except ValueError:
+			data = {'detail': 'Invalid JSON response from ai_chat_service'}
 		return JsonResponse(data, status=r.status_code)
+	except requests.Timeout:
+		return JsonResponse(
+			{'detail': 'ai_chat_service timed out'},
+			status=504,
+		)
 	except requests.RequestException:
 		return JsonResponse(
 			{'detail': 'Unable to reach ai_chat_service'},

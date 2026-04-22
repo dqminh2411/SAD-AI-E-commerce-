@@ -30,5 +30,12 @@ class ChatMessageView(APIView):
 
         ensure_kb_index()
         service = ChatbotService()
-        data = service.answer(user_id=user_id, message=message, context=context)
-        return Response(data, status=status.HTTP_200_OK)
+        try:
+            data = service.answer(user_id=user_id, message=message, context=context)
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception:
+            # Always return JSON so api_gateway never fails parsing upstream response.
+            return Response(
+                {'detail': 'ai_chat_service internal error'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
